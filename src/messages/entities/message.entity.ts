@@ -1,1 +1,4 @@
-export class Message {}
+export class Message {
+    author: string;
+    text: string;
+}
