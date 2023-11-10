@@ -16,6 +16,7 @@ export class MessagesGateway {
 
   @SubscribeMessage('createMessage')
   async create(@MessageBody() createMessageDto: CreateMessageDto) {
+    console.log('Create message emit recieved!');
     const message = await this.messagesService.create(createMessageDto);
 
     this.server.emit('message', message);
@@ -25,15 +26,24 @@ export class MessagesGateway {
 
   @SubscribeMessage('findAllMessages')
   findAll() {
+    console.log('Find All Messages emit recieved!');
     return this.messagesService.findAll();
   }
 
-  @SubscribeMessage('userJoins')
-  joinRoom(
+  @SubscribeMessage('userLoginAttempt')
+  loginAttempt(
     @MessageBody('name') name: string,
-    @ConnectedSocket() client: Socket) {
+    @ConnectedSocket() client: Socket
+  ) {
+    if (this.messagesService.userExists(name))
+      return { status: 'failed', message: 'Username is already taken' }
+    else {
+      const userList = this.messagesService.identify(name, client.id);
 
-    return this.messagesService.identify(name, client.id);
+      client.broadcast.emit('userJoined', name);
+
+      return { status: 'success', users: userList }
+    }
   }
 
   @SubscribeMessage('userTyping')
@@ -41,6 +51,7 @@ export class MessagesGateway {
     @MessageBody('isTyping') isTyping: boolean,
     @ConnectedSocket() client: Socket,
   ) {
+    console.log('User typing emit recieved!');
     const name = this.messagesService.getClientName(client.id);
 
     // Send to everyone except the sender

@@ -8,9 +8,9 @@ export class MessagesService {
     { author: 'Admin', text: 'Welcome to the chat room' },
   ];
 
-  private clientToUser = {};
+  private clientToUser = new Map();
 
-  create(createMessageDto: CreateMessageDto) {
+  create(createMessageDto: CreateMessageDto): Message {
     const msg: Message = { ...createMessageDto };
 
     this.messages.push(msg);
@@ -22,13 +22,17 @@ export class MessagesService {
     return this.messages;
   }
 
-  identify(name: string, userId: string) {
-    this.clientToUser[userId] = name;
+  identify(name: string, userId: string): string[] {
+    this.clientToUser.set(userId, name);
 
-    return Object.values(this.clientToUser);
+    return Array.from(this.clientToUser.values());
   }
 
-  getClientName(clientId: string) {
-    return this.clientToUser[clientId];
+  getClientName(clientId: string): string {
+    return this.clientToUser.get(clientId);
+  }
+
+  userExists(name: string): boolean {
+    return Array.from(this.clientToUser.values()).includes(name);
   }
 }
