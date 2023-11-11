@@ -14,12 +14,14 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   constructor(private readonly messagesService: MessagesService) { }
 
-  handleConnection(client: any, ...args: any[]) {
+  handleConnection(client: Socket, ...args: any[]) {
     console.log('Gateway connection established');
   }
 
-  handleDisconnect(client: any) {
-    this.messagesService.removeUser(client.id);
+  handleDisconnect(client: Socket) {
+    const name = this.messagesService.removeUser(client.id);
+    if (name) this.server.emit('userLeft', name);
+    return name;
   }
 
   @SubscribeMessage('userLoginAttempt')
@@ -27,7 +29,6 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     @MessageBody('name') name: string,
     @ConnectedSocket() client: Socket
   ) {
-    console.log('User login attempt');
     if (this.messagesService.userExists(name))
       return { status: 'failed', message: 'Username is already taken' }
     else {
@@ -40,18 +41,13 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     }
   }
 
-  @SubscribeMessage('userLeft')
-  logout(@MessageBody('userId') userId: string, @ConnectedSocket() client: Socket) {
-    console.log('User disconnected!');
-    return this.messagesService.removeUser(userId);
-  }
-
   @SubscribeMessage('createMessage')
-  async create(@MessageBody() createMessageDto: CreateMessageDto) {
-    console.log('Create message emit recieved!');
+  async create(
+    @MessageBody() createMessageDto: CreateMessageDto
+  ) {
     const message = await this.messagesService.create(createMessageDto);
 
-    this.server.emit('message', message);
+    this.server.emit('newMessage', message);
 
     return message;
   }
@@ -63,7 +59,6 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     @MessageBody('isTyping') isTyping: boolean,
     @ConnectedSocket() client: Socket,
   ) {
-    console.log('User typing emit recieved!');
     const name = this.messagesService.getClientName(client.id);
 
     // Send to everyone except the sender

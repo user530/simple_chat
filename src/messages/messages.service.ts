@@ -11,7 +11,11 @@ export class MessagesService {
   private clientToUser = new Map();
 
   create(createMessageDto: CreateMessageDto): Message {
-    const msg: Message = { ...createMessageDto };
+    const { authorId: id, text } = createMessageDto;
+
+    const author = this.getClientName(id);
+
+    const msg: Message = { author, text };
 
     this.messages.push(msg);
 
@@ -28,8 +32,11 @@ export class MessagesService {
     return Array.from(this.clientToUser.values());
   }
 
-  removeUser(userId: string): boolean {
-    return this.clientToUser.delete(userId);
+  removeUser(userId: string): string {
+    const name: string = this.clientToUser.get(userId);
+    if (name) this.clientToUser.delete(userId);
+
+    return name ?? null;
   }
 
   getClientName(clientId: string): string {
