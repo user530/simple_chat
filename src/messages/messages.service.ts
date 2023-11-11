@@ -18,7 +18,7 @@ export class MessagesService {
     return msg;
   }
 
-  findAll(): Message[] {
+  findAllMessages(): Message[] {
     return this.messages;
   }
 
@@ -26,6 +26,10 @@ export class MessagesService {
     this.clientToUser.set(userId, name);
 
     return Array.from(this.clientToUser.values());
+  }
+
+  removeUser(userId: string): boolean {
+    return this.clientToUser.delete(userId);
   }
 
   getClientName(clientId: string): string {

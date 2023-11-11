@@ -1,4 +1,4 @@
-import { WebSocketGateway, SubscribeMessage, MessageBody, WebSocketServer, ConnectedSocket } from '@nestjs/websockets';
+import { WebSocketGateway, SubscribeMessage, MessageBody, WebSocketServer, ConnectedSocket, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { Server, Socket } from 'socket.io';
@@ -8,11 +8,43 @@ import { Server, Socket } from 'socket.io';
     origin: '*',
   },
 })
-export class MessagesGateway {
+export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
   constructor(private readonly messagesService: MessagesService) { }
+
+  handleConnection(client: any, ...args: any[]) {
+    console.log('Gateway connection established');
+  }
+
+  handleDisconnect(client: any) {
+    this.messagesService.removeUser(client.id);
+  }
+
+  @SubscribeMessage('userLoginAttempt')
+  loginAttempt(
+    @MessageBody('name') name: string,
+    @ConnectedSocket() client: Socket
+  ) {
+    console.log('User login attempt');
+    if (this.messagesService.userExists(name))
+      return { status: 'failed', message: 'Username is already taken' }
+    else {
+      const users = this.messagesService.identify(name, client.id);
+      const messages = this.messagesService.findAllMessages();
+
+      client.broadcast.emit('userJoined', name);
+
+      return { status: 'success', users, messages }
+    }
+  }
+
+  @SubscribeMessage('userLeft')
+  logout(@MessageBody('userId') userId: string, @ConnectedSocket() client: Socket) {
+    console.log('User disconnected!');
+    return this.messagesService.removeUser(userId);
+  }
 
   @SubscribeMessage('createMessage')
   async create(@MessageBody() createMessageDto: CreateMessageDto) {
@@ -24,27 +56,7 @@ export class MessagesGateway {
     return message;
   }
 
-  @SubscribeMessage('findAllMessages')
-  findAll() {
-    console.log('Find All Messages emit recieved!');
-    return this.messagesService.findAll();
-  }
 
-  @SubscribeMessage('userLoginAttempt')
-  loginAttempt(
-    @MessageBody('name') name: string,
-    @ConnectedSocket() client: Socket
-  ) {
-    if (this.messagesService.userExists(name))
-      return { status: 'failed', message: 'Username is already taken' }
-    else {
-      const userList = this.messagesService.identify(name, client.id);
-
-      client.broadcast.emit('userJoined', name);
-
-      return { status: 'success', users: userList }
-    }
-  }
 
   @SubscribeMessage('userTyping')
   async typing(
