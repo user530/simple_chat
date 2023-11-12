@@ -61,7 +61,6 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   ) {
     const name = this.messagesService.getClientName(client.id);
 
-    // Send to everyone except the sender
-    client.broadcast.emit('typing', { name, isTyping });
+    client.broadcast.emit('isTyping', { name, isTyping });
   }
 }
